@@ -74,8 +74,8 @@ while True:
                 # Will populate with any new nearby mon
                 new_nearby = {}
                 # Will consolidate all nearby and lingering nearby into one message
-                nearby_message = "Nearby: "
-                lingering_nearby_message = "Lingering nearby: "
+                nearby_message = "Nearby:"
+                lingering_nearby_message = "Lingering nearby:"
                 # Iterate over each mon in result
                 for encounter in response['result']:
                     # If we know the spawn point then it is an encounter we can see
