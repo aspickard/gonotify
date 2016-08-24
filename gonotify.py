@@ -26,6 +26,9 @@ print "Scanning ({},{}) every {} minutes.".format(LAT, LONG, DELAY)
 def sendmessage(message):
     subprocess.Popen(['notify-send', message])
 
+def printline():
+    print "--------------------------------------------------------------"
+
 # Encounters that have been seen already
 cur_encounters = {}
 # Nearby that have been seen already
@@ -60,6 +63,7 @@ while True:
             if 'error' in response:
                 tries+=1
             else:
+                printline()
                 print "\nSuccess! ({0})\n".format(datetime.now())
                 # We have a valid response
                 success = True
@@ -118,6 +122,7 @@ while True:
                 if lingering_nearby:
                     print lingering_nearby_message
 
+                printline()
         # Handle other (likely 5XX) errors.
         except:
             print "Error reaching servers..."
