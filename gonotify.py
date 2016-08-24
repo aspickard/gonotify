@@ -123,6 +123,7 @@ while True:
                     print lingering_nearby_message
 
                 printline()
+                print ""
         # Handle other (likely 5XX) errors.
         except:
             print "Error reaching servers..."
