@@ -27,7 +27,7 @@ def sendmessage(message):
     subprocess.Popen(['notify-send', message])
 
 def printline():
-    print "--------------------------------------------------------------"
+    print "\n--------------------------------------------------------------"
 
 # Encounters that have been seen already
 cur_encounters = {}
@@ -102,11 +102,11 @@ while True:
                     # If not in cur_nearby then it is a newly seen nearby mon
                     elif 'spawn_point_id' not in encounter and encounter['encounter_id'] not in cur_nearby:
                         new_nearby[encounter['encounter_id']] = encounter
-                        nearby_message += " {0} ".format(encounter["pokemon_id"])
+                        nearby_message += " {0}".format(encounter["pokemon_id"])
                     # Otherwise it is a lingering nearby mon
                     else:
                         lingering_nearby = True
-                        lingering_nearby_message += " {0} ".format(encounter["pokemon_id"])
+                        lingering_nearby_message += " {0}".format(encounter["pokemon_id"])
 
                 # Refresh our experienced encounters
                 # This will delete stale encounters
