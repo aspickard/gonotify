@@ -4,27 +4,47 @@ import requests
 import subprocess
 import sys
 import random
+import sys
+from datetime import datetime
 from time import sleep
 from datetime import datetime
+
+import sys
+
+class Logger(object):
+    def __init__(self, filename="Default.log"):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
 
 if len(sys.argv) < 3:
     print "\nUsage: gonotify.py latitude longitude [delay]"
     print "latitude: latitude position to scan from."
     print "longitude: longitude position to scan from."
     print "delay (optional): delay in minutes after a successful scan.\n"
+    print "log (optional): if present, output to log file with this prefix and disable notifications.\n"
     sys.exit()
 
 DELAY = 5
 LAT = sys.argv[1]
 LONG = sys.argv[2]
+LABEL = None
 
-if len(sys.argv) == 4:
+if len(sys.argv) >= 4:
     DELAY = int(sys.argv[3])
+
+if len(sys.argv) >= 5:
+    LABEL = sys.argv[4]
+    sys.stdout = Logger(LABEL + str(datetime.now()) + ".log")
 
 print "Scanning ({},{}) every {} minutes.".format(LAT, LONG, DELAY)
 
 def sendmessage(message):
-    subprocess.Popen(['notify-send', message])
+    if not LABEL:
+        subprocess.Popen(['notify-send', message])
 
 def printline():
     print "\n--------------------------------------------------------------"
@@ -80,7 +100,12 @@ while True:
                 for encounter in response['result']:
                     # If we know the spawn point then it is an encounter we can see
                     # If not in cur_encounters then it is a new spawn
-                    if encounter['encounter_id'] not in cur_encounters and 'spawn_point_id' in encounter:
+                    if 'lure_info' in encounter and encounter['lure_info']['encounter_id'] not in cur_encounters:
+                        new_encounters[encounter['lure_info']['encounter_id']] = encounter['lure_info']
+                        message = "Lured {} at ({}, {}).".format(encounter['lure_info']['active_pokemon_id'], encounter['latitude'], encounter['longitude'])
+                        print message
+                        sendmessage(message)
+                    elif encounter['encounter_id'] not in cur_encounters and 'spawn_point_id' in encounter:
                         new_encounters[encounter['encounter_id']] = encounter
                         # Response time is in ms
                         time_left = -((int(datetime.now().strftime('%s')) * 1000) - int(encounter['expiration_timestamp_ms'])) / 1000
