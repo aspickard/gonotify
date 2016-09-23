@@ -1,166 +1,54 @@
 #!/usr/bin/python
 
 import requests
-import subprocess
 import sys
 import random
 import sys
-from datetime import datetime
-from time import sleep
-from datetime import datetime
 
-import sys
+HEADERS = {
+    'cache-control': 'no-cache',
+    'origin': 'https://fastpokemap.se',
+    'pragma': "no-cache",
+    'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36',
+}
 
-class Logger(object):
-    def __init__(self, filename="Default.log"):
-        self.terminal = sys.stdout
-        self.log = open(filename, "a")
-
-    def write(self, message):
-        self.terminal.write(message)
-        self.log.write(message)
-
-if len(sys.argv) < 3:
-    print "\nUsage: gonotify.py latitude longitude [delay]"
-    print "latitude: latitude position to scan from."
-    print "longitude: longitude position to scan from."
-    print "delay (optional): delay in minutes after a successful scan.\n"
-    print "log (optional): if present, output to log file with this prefix and disable notifications.\n"
-    sys.exit()
-
-DELAY = 5
-LAT = sys.argv[1]
-LONG = sys.argv[2]
-LABEL = None
-
-if len(sys.argv) >= 4:
-    DELAY = int(sys.argv[3])
-
-if len(sys.argv) >= 5:
-    LABEL = sys.argv[4]
-    sys.stdout = Logger(LABEL + str(datetime.now()) + ".log")
-
-print "Scanning ({},{}) every {} minutes.".format(LAT, LONG, DELAY)
-
-def sendmessage(message):
-    if not LABEL:
-        subprocess.Popen(['notify-send', message])
-
-def printline():
-    print "\n--------------------------------------------------------------"
-
-# Encounters that have been seen already
-cur_encounters = {}
-# Nearby that have been seen already
-cur_nearby = {}
-
-# Loop until the user ends the application
-while True:
+def requestMons(lat, lng, headers=HEADERS, max_tries=100):
     # Becomes True after a successful response has been gathered
     success = False
     # Act like we are firefox
-    headers = {
-        'cache-control': 'no-cache',
-        'origin': 'https://fastpokemap.se',
-        'pragma': "no-cache",
-        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.103 Safari/537.36',
-    }
     # Location parameters to query
     location = {
-        'lat': LAT,
-        'lng': LONG
+        'lat': lat,
+        'lng': lng
     }
+    headers=headers
     # How many tries have been made since a successful response
     tries = 0
+    response = {}
+    new_encounters = []
+    new_lures = []
 
-    # Keep requesting until successful
-    while not success:
-        print "Requesting... (attempt {0} at {1})".format(tries, datetime.now())
-        response = requests.get("https://api.fastpokemap.se", params=location, headers=headers)
+    # Keep requesting until successful or exceed max_tries
+    while not success and tries < max_tries:
+        response = requests.get("https://api.fastpokemap.se", params=location, headers=HEADERS)
         try:
             response = response.json()
             # We get this when the server is overloaded
             if 'error' in response:
                 tries+=1
             else:
-                printline()
-                print "\nSuccess! ({0})\n".format(datetime.now())
-                # We have a valid response
                 success = True
-                # Will be set to true if we see a mon nearby that we've already seen before
-                lingering_nearby = False
-                # This will be the cur_encounters after the response is processed
-                new_encounters = {}
-                # Will populate with any new nearby mon
-                new_nearby = {}
-                # Will consolidate all nearby and lingering nearby into one message
-                nearby_message = "Nearby:"
-                lingering_nearby_message = "Lingering nearby:"
-                # Iterate over each mon in result
+
+            if success:
                 for encounter in response['result']:
-                    # If we know the spawn point then it is an encounter we can see
-                    # If not in cur_encounters then it is a new spawn
-                    if 'lure_info' in encounter and encounter['lure_info']['encounter_id'] not in cur_encounters:
-                        new_encounters[encounter['lure_info']['encounter_id']] = encounter['lure_info']
-                        message = "Lured {} at ({}, {}).".format(encounter['lure_info']['active_pokemon_id'], encounter['latitude'], encounter['longitude'])
-                        print message
-                        sendmessage(message)
-                    elif encounter['encounter_id'] not in cur_encounters and 'spawn_point_id' in encounter:
-                        new_encounters[encounter['encounter_id']] = encounter
-                        # Response time is in ms
-                        time_left = -((int(datetime.now().strftime('%s')) * 1000) - int(encounter['expiration_timestamp_ms'])) / 1000
-                        minutes = time_left / 60
-                        seconds = time_left % 60
-                        seconds = "%02d" % seconds
-                        message = "Encountered {id} - {min}:{sec} remains.".format(id=encounter["pokemon_id"], min=minutes, sec=seconds)
-                        # Print to terminal
-                        print message
-                        # Show desktop alert
-                        sendmessage(message)
-                    # Otherwise it is a lingering spawn
+                    if 'lure_info' in encounter and encounter['lure_info']['encounter_id']:
+                        new_lures.append(encounter['lure_info'])
                     elif 'spawn_point_id' in encounter:
-                        new_encounters[encounter['encounter_id']] = encounter
-                        time_left = -((int(datetime.now().strftime('%s')) * 1000) - int(encounter['expiration_timestamp_ms'])) / 1000
-                        minutes = time_left / 60
-                        seconds = time_left % 60
-                        seconds = "%02d" % seconds
-                        # Print to terminal but no notification
-                        message = "Lingering {id} - {min}:{sec} remains.".format(id=encounter["pokemon_id"], min=minutes, sec=seconds)
-                        print message
-                    # If we don't know the spawn point, then it is nearby
-                    # If not in cur_nearby then it is a newly seen nearby mon
-                    elif 'spawn_point_id' not in encounter and encounter['encounter_id'] not in cur_nearby:
-                        new_nearby[encounter['encounter_id']] = encounter
-                        nearby_message += " {0}".format(encounter["pokemon_id"])
-                    # Otherwise it is a lingering nearby mon
-                    else:
-                        lingering_nearby = True
-                        lingering_nearby_message += " {0}".format(encounter["pokemon_id"])
+                        new_encounters.append(encounter)
 
-                # Refresh our experienced encounters
-                # This will delete stale encounters
-                cur_encounters = new_encounters
-
-                # Notification of consolidated nearby mon
-                if new_nearby:
-                    print nearby_message
-                    sendmessage(nearby_message)
-                    cur_nearby.update(new_nearby)
-
-                # Terminal message of lingering nearby mon
-                if lingering_nearby:
-                    print lingering_nearby_message
-
-                printline()
-                print ""
         # Handle other (likely 5XX) errors.
         except:
-            print "Error reaching servers..."
             tries += 1
-            pass
 
-    human_delay = random.randint(1, 20)
-    # Delay until next cycle
-    # Add random few seconds to make us look less like a bot
-    sleep(DELAY * 60 + human_delay)
+    return {"lures":new_lures, "encounters":new_encounters, "success":success, "tries":tries}
 
