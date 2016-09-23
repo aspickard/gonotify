@@ -120,6 +120,10 @@ while True:
                     # Otherwise it is a lingering spawn
                     elif 'spawn_point_id' in encounter:
                         new_encounters[encounter['encounter_id']] = encounter
+                        time_left = -((int(datetime.now().strftime('%s')) * 1000) - int(encounter['expiration_timestamp_ms'])) / 1000
+                        minutes = time_left / 60
+                        seconds = time_left % 60
+                        seconds = "%02d" % seconds
                         # Print to terminal but no notification
                         message = "Lingering {id} - {min}:{sec} remains.".format(id=encounter["pokemon_id"], min=minutes, sec=seconds)
                         print message
