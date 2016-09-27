@@ -51,10 +51,12 @@ while True:
                 client.index(index=LABEL, doc_type="encounter", id=encounter['encounter_id'], body=encounter)
 
         for lure in results['lures']:
-            encounter['discovery_time'] = datetime.utcnow()
+            lure['discovery_time'] = datetime.utcnow()
+            lure['expiration_time'] = epochStringToDatetime(lure['lure_expires_timestamp_ms'])
+            lure['pokemon_id'] = lure['active_pokemon_id']
             try:
-                client.get(index=LABEL, id=lure['lure_info']['encounter_id'])
+                client.get(index=LABEL, id=lure['encounter_id'])
             except elasticsearch.exceptions.NotFoundError as e:
-                client.index(index=LABEL, doc_type="lure", id=lure['lure_info']['encounter_id'], body=lure)
+                client.index(index=LABEL, doc_type="lure", id=lure['encounter_id'], body=lure)
 
     sleep(DELAY*60)
